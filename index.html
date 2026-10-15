@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nearby Essentials – find what you need around any address</title>
+<meta name="description" content="Find pharmacies, ATMs, clinics, cafes and bus stops around you, ranked by distance, with car, bike and walking times.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{sans:['"Bricolage Grotesque"','system-ui','sans-serif']},colors:{ink:'#0F2A33',teal:'#1F7A6D',mist:'#EAF2F4',sun:'#F4B63F'}}}}</script>
+<style>
+ body{background:#EAF2F4;color:#0F2A33}
+ .contours{background-image:repeating-radial-gradient(circle at 78% 30%,transparent 0 22px,rgba(244,182,63,.12) 22px 23px)}
+ :focus-visible{outline:3px solid #F4B63F;outline-offset:2px}
+ #map{height:380px;border-radius:1rem;z-index:0}
+ .chip[aria-pressed="true"]{background:#0F2A33;color:#fff;border-color:#0F2A33}
+ .navlink{position:relative}
+ .navlink::after{content:"";position:absolute;left:0;bottom:-4px;height:2px;width:0;background:#F4B63F;transition:width .25s}
+ .navlink:hover::after,.navlink.active::after{width:100%}
+ .lift{transition:transform .25s,box-shadow .25s}.lift:hover{transform:translateY(-6px);box-shadow:0 16px 30px rgba(15,42,51,.15)}
+ .zoom img{transition:transform .5s}.zoom:hover img{transform:scale(1.07)}
+ .row{transition:background .2s,transform .2s}.row:hover{background:#FFF6DF;transform:translateX(4px)}
+ @media (prefers-reduced-motion:no-preference){.pulse{animation:pulse 1.4s ease-in-out infinite}@keyframes pulse{50%{opacity:.4}}}
+ @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body class="font-sans antialiased">
+
+<header id="hdr" class="bg-ink text-white sticky top-0 z-50 transition-shadow">
+  <nav class="max-w-7xl mx-auto px-5 py-4 flex items-center justify-between" aria-label="Main">
+    <a href="#home" class="font-extrabold text-xl tracking-tight">Nearby<span class="text-sun">Essentials</span></a>
+    <div id="links" class="hidden lg:flex gap-6 text-sm">
+      <a class="navlink" href="#home">Home</a><a class="navlink" href="#problem">The problem</a><a class="navlink" href="#compare">Compare</a>
+      <a class="navlink" href="#features">Features</a><a class="navlink" href="#how">How it works</a><a class="navlink" href="#finder">Find places</a>
+      <a class="navlink" href="#faq">FAQ</a><a class="navlink" href="#team">Team</a>
+    </div>
+    <a href="#finder" class="hidden lg:block bg-sun text-ink font-semibold text-sm px-4 py-2 rounded-full hover:bg-white transition">Find places</a>
+    <button id="menuBtn" class="lg:hidden p-2 border border-white/30 rounded-lg" aria-label="Open menu" aria-expanded="false">Menu</button>
+  </nav>
+  <div id="mobileMenu" class="hidden lg:hidden px-5 pb-4 grid gap-2 text-sm">
+    <a href="#home">Home</a><a href="#problem">The problem</a><a href="#compare">Compare</a><a href="#features">Features</a><a href="#how">How it works</a><a href="#finder">Find places</a><a href="#faq">FAQ</a><a href="#team">Team</a>
+  </div>
+</header>
+
+<main>
+<section id="home" class="relative overflow-hidden bg-ink text-white contours">
+  <video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover opacity-30" aria-hidden="true"><source src="media/hero.mp4" type="video/mp4"></video>
+  <div class="relative max-w-7xl mx-auto px-5 py-20 md:py-28 grid md:grid-cols-2 gap-10 items-center">
+    <div>
+      <h1 class="text-4xl md:text-6xl font-extrabold leading-[1.05] tracking-tight">Need a pharmacy right now? Get the nearest one in one step.</h1>
+      <p class="mt-5 text-lg text-white/85 max-w-md">Tap your location or type an address, choose what you need, and see the closest places ranked by distance, with car, bike and walking times.</p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href="#finder" class="bg-sun text-ink font-bold px-6 py-3 rounded-full hover:bg-white transition">Start searching</a>
+        <a href="#problem" class="border border-white/40 px-6 py-3 rounded-full hover:bg-white/10 transition">See the problem we fix</a>
+      </div>
+    </div>
+    <div class="bg-white text-ink rounded-3xl p-6 shadow-2xl lift" aria-hidden="true">
+      <p class="font-semibold mb-3">Sample: pharmacies near Hosur Road</p>
+      <ul class="space-y-2 text-sm">
+        <li class="flex justify-between bg-mist rounded-xl px-4 py-3"><span>Medical store</span><span class="font-semibold">120 m · 2 min walk</span></li>
+        <li class="flex justify-between bg-mist rounded-xl px-4 py-3"><span>Pharmacy</span><span class="font-semibold">340 m · 5 min walk</span></li>
+        <li class="flex justify-between bg-mist rounded-xl px-4 py-3"><span>Clinic pharmacy</span><span class="font-semibold">900 m · 4 min bike</span></li>
+      </ul>
+      <p class="text-xs text-ink/60 mt-3">Preview only. Run a real search below.</p>
+    </div>
+  </div>
+</section>
+
+<section id="problem" class="max-w-7xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
+  <div>
+    <h2 class="text-3xl md:text-4xl font-extrabold">On OpenStreetMap, "near me" does not mean near you.</h2>
+    <p class="mt-4 text-ink/80">We tested it: press the locate button, search "pharmacy", and results appear outside India. Only when you type "pharmacy near Hosur Road" do you get local results. The search box finds place names. It does not search around you.</p>
+    <div class="mt-6 grid gap-4">
+      <article class="border-l-4 border-teal pl-4 hover:bg-white transition rounded-r-xl py-2"><h3 class="font-bold">Location and search are disconnected</h3><p class="text-ink/75 text-sm">You must know to type the area name as well.</p></article>
+      <article class="border-l-4 border-sun pl-4 hover:bg-white transition rounded-r-xl py-2"><h3 class="font-bold">No distance in the results</h3><p class="text-ink/75 text-sm">You cannot compare which place is closest.</p></article>
+      <article class="border-l-4 border-ink pl-4 hover:bg-white transition rounded-r-xl py-2"><h3 class="font-bold">Travel time is a separate trip</h3><p class="text-ink/75 text-sm">Directions are a different tool, so you repeat the steps for each place.</p></article>
+    </div>
+  </div>
+  <div class="zoom overflow-hidden rounded-3xl bg-white min-h-[260px] grid place-items-center text-ink/50">
+    <img src="images/problem.jpg" alt="Person checking a map on a phone in a busy street" class="w-full h-full object-cover" onerror="this.remove()">
+  </div>
+</section>
+
+<section id="compare" class="bg-white">
+  <div class="max-w-7xl mx-auto px-5 py-16">
+    <h2 class="text-3xl md:text-4xl font-extrabold">OpenStreetMap vs Nearby Essentials</h2>
+    <div class="mt-8 overflow-x-auto rounded-2xl border border-ink/10">
+      <table class="w-full text-left text-sm min-w-[560px]">
+        <thead class="bg-ink text-white"><tr><th class="p-4">Task</th><th class="p-4">OpenStreetMap (observed)</th><th class="p-4">Nearby Essentials</th></tr></thead>
+        <tbody class="[&>tr:hover]:bg-sun/20 [&>tr]:transition">
+          <tr class="border-t"><td class="p-4 font-semibold">Search near my location</td><td class="p-4">Returned places outside India</td><td class="p-4">Uses your coordinates directly</td></tr>
+          <tr class="border-t"><td class="p-4 font-semibold">Distance in results</td><td class="p-4">Not shown in list</td><td class="p-4">Metres or km, sorted nearest first</td></tr>
+          <tr class="border-t"><td class="p-4 font-semibold">Switch category</td><td class="p-4">Retype the query</td><td class="p-4">One tap on a chip</td></tr>
+          <tr class="border-t"><td class="p-4 font-semibold">Travel time</td><td class="p-4">Separate Directions tool</td><td class="p-4">Car, bike, walk from each result</td></tr>
+          <tr class="border-t"><td class="p-4 font-semibold">Save a shortlist</td><td class="p-4">Needs an account</td><td class="p-4">Saved on your device</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-3 text-xs text-ink/60">Rows reflect our own testing of openstreetmap.org in October 2026.</p>
+  </div>
+</section>
+
+<section id="features" class="max-w-7xl mx-auto px-5 py-16">
+  <h2 class="text-3xl md:text-4xl font-extrabold">What you get</h2>
+  <div class="mt-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <article class="lift bg-white rounded-2xl p-6"><h3 class="font-bold text-lg">Real "near me"</h3><p class="mt-2 text-ink/75 text-sm">Uses your GPS or any typed address as the centre of the search.</p></article>
+    <article class="lift bg-white rounded-2xl p-6"><h3 class="font-bold text-lg">Ranked by distance</h3><p class="mt-2 text-ink/75 text-sm">Closest first, up to a 25 km radius.</p></article>
+    <article class="lift bg-white rounded-2xl p-6"><h3 class="font-bold text-lg">Car, bike, walk</h3><p class="mt-2 text-ink/75 text-sm">See the time and route for each mode in one tap.</p></article>
+    <article class="lift bg-white rounded-2xl p-6"><h3 class="font-bold text-lg">Save places</h3><p class="mt-2 text-ink/75 text-sm">Keep a shortlist without signing up.</p></article>
+  </div>
+</section>
+
+<section id="how" class="bg-white">
+  <div class="max-w-7xl mx-auto px-5 py-16 grid md:grid-cols-2 gap-10 items-center">
+    <div>
+      <h2 class="text-3xl md:text-4xl font-extrabold">How it works</h2>
+      <ol class="mt-6 space-y-3 list-decimal list-inside marker:font-bold marker:text-teal">
+        <li class="bg-mist rounded-xl p-4 hover:bg-sun/30 transition"><b>Set your starting point:</b> use your location or type an address.</li>
+        <li class="bg-mist rounded-xl p-4 hover:bg-sun/30 transition"><b>Pick a category and radius:</b> from 500 m to 25 km.</li>
+        <li class="bg-mist rounded-xl p-4 hover:bg-sun/30 transition"><b>Choose a place:</b> read the distance and press Directions for travel times.</li>
+      </ol>
+    </div>
+    <div class="zoom overflow-hidden rounded-3xl bg-mist min-h-[240px]">
+      <video controls muted playsinline class="w-full h-full object-cover" poster="images/features.jpg"><source src="media/demo.mp4" type="video/mp4">Your browser does not support video.</video>
+    </div>
+  </div>
+</section>
+
+<section id="finder" class="max-w-7xl mx-auto px-5 py-16">
+  <h2 class="text-3xl md:text-4xl font-extrabold">Find what is near you</h2>
+  <div class="mt-8 grid lg:grid-cols-5 gap-8">
+    <div class="lg:col-span-2">
+      <form id="searchForm" novalidate class="bg-white rounded-3xl p-6 shadow-sm space-y-5">
+        <div>
+          <label for="place" class="block font-semibold mb-1">Address or area</label>
+          <input id="place" type="text" autocomplete="off" placeholder="e.g. Hosur Road, Bengaluru" class="w-full rounded-xl border border-ink/20 px-4 py-3 hover:border-teal transition" aria-describedby="placeMsg">
+          <p id="placeMsg" class="text-sm mt-1 min-h-[1.25rem]" role="status"></p>
+        </div>
+        <fieldset>
+          <legend class="font-semibold mb-2">What do you need?</legend>
+          <div id="chips" class="flex flex-wrap gap-2"></div>
+        </fieldset>
+        <div>
+          <label for="radius" class="block font-semibold mb-1">Search radius</label>
+          <select id="radius" class="w-full rounded-xl border border-ink/20 px-4 py-3 bg-white hover:border-teal transition">
+            <option value="500">500 m</option><option value="1000" selected>1 km</option><option value="2000">2 km</option><option value="3000">3 km</option><option value="5000">5 km</option><option value="10000">10 km</option><option value="25000">25 km</option>
+          </select>
+          <p id="radiusMsg" class="text-sm mt-1 text-ink/70 min-h-[1.25rem]"></p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <button type="submit" class="bg-ink text-white font-bold px-6 py-3 rounded-full hover:bg-teal transition">Search nearby</button>
+          <button type="button" id="locBtn" class="border border-ink/30 font-semibold px-5 py-3 rounded-full hover:bg-sun hover:border-sun transition">Use my location</button>
+        </div>
+      </form>
+      <div class="mt-6 bg-white rounded-3xl p-6">
+        <h3 class="font-bold">Saved places</h3>
+        <ul id="saved" class="mt-3 space-y-2 text-sm"></ul>
+      </div>
+    </div>
+    <div class="lg:col-span-3 space-y-5">
+      <div id="map" role="img" aria-label="Map of search results"></div>
+      <div id="dirPanel" class="hidden bg-white rounded-2xl p-5">
+        <p id="dirTitle" class="font-bold"></p>
+        <div class="mt-3 flex gap-2" id="modeTabs">
+          <button data-mode="car" class="mode border border-ink/25 rounded-full px-4 py-1.5 text-sm hover:bg-sun transition">Car</button>
+          <button data-mode="bike" class="mode border border-ink/25 rounded-full px-4 py-1.5 text-sm hover:bg-sun transition">Bike</button>
+          <button data-mode="foot" class="mode border border-ink/25 rounded-full px-4 py-1.5 text-sm hover:bg-sun transition">Walk</button>
+        </div>
+        <p id="dirInfo" class="mt-3 text-lg font-semibold" role="status"></p>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+      <ul id="results" class="space-y-3"></ul>
+    </div>
+  </div>
+</section>
+
+<section id="faq" class="bg-white">
+  <div class="max-w-3xl mx-auto px-5 py-16">
+    <h2 class="text-3xl md:text-4xl font-extrabold">Questions</h2>
+    <div class="mt-6 space-y-3">
+      <details class="bg-mist rounded-xl p-4 hover:bg-sun/30 transition"><summary class="font-semibold cursor-pointer">Why does "Use my location" not work?</summary><p class="mt-2 text-sm text-ink/80">Open the site from its https link, allow Location in the browser lock icon, and make sure device location is on.</p></details>
+      <details class="bg-mist rounded-xl p-4 hover:bg-sun/30 transition"><summary class="font-semibold cursor-pointer">Where does the data come from?</summary><p class="mt-2 text-sm text-ink/80">OpenStreetMap contributors, through the Nominatim, Overpass and OSM routing services.</p></details>
+      <details class="bg-mist rounded-xl p-4 hover:bg-sun/30 transition"><summary class="font-semibold cursor-pointer">Why is a place missing?</summary><p class="mt-2 text-sm text-ink/80">OpenStreetMap is edited by volunteers, so some places may not be mapped yet.</p></details>
+    </div>
+  </div>
+</section>
+
+<section id="team" class="max-w-7xl mx-auto px-5 py-16">
+  <h2 class="text-3xl md:text-4xl font-extrabold">Team</h2>
+  <div class="mt-6 grid sm:grid-cols-3 gap-6">
+    <div class="lift bg-white rounded-2xl p-6"><p class="font-bold">Nehal Jain</p><p class="text-sm text-ink/70">2MSc AI&ML &amp; ML, Christ University</p></div>
+  </div>
+</section>
+</main>
+
+<footer class="bg-ink text-white/75 text-sm">
+  <div class="max-w-7xl mx-auto px-5 py-8 space-y-2">
+    <p>Map data &copy; OpenStreetMap contributors. Geocoding: Nominatim. Places: Overpass API. Routing: routing.openstreetmap.de.</p>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+const CATS={
+  pharmacy:{label:'Pharmacy / medical store',q:['["amenity"="pharmacy"]','["shop"="chemist"]'],terms:['pharmacy','chemist']},
+  atm:{label:'ATM',q:['["amenity"="atm"]'],terms:['atm']},
+  cafe:{label:'Cafe',q:['["amenity"="cafe"]'],terms:['cafe']},
+  clinic:{label:'Clinic or hospital',q:['["amenity"~"clinic|hospital"]'],terms:['clinic','hospital']},
+  bus:{label:'Bus stop',q:['["highway"="bus_stop"]'],terms:['bus stop']},
+  food:{label:'Restaurant',q:['["amenity"="restaurant"]'],terms:['restaurant']}
+};
+const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+const PROFILES={car:'routed-car',bike:'routed-bike',foot:'routed-foot'};
+const $=id=>document.getElementById(id);
+let selected='pharmacy',center=null,results=[],markers={},routeLayer=null,dest=null,mode='car';
+
+const map=L.map('map').setView([12.9716,77.5946],12);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+const layer=L.layerGroup().addTo(map);
+
+/* Header: mobile menu (click), Escape (keydown), shadow + active link (scroll) */
+const menuBtn=$('menuBtn'),mobileMenu=$('mobileMenu');
+menuBtn.addEventListener('click',()=>{const o=mobileMenu.classList.toggle('hidden');menuBtn.setAttribute('aria-expanded',!o)});
+mobileMenu.addEventListener('click',e=>{if(e.target.tagName==='A')mobileMenu.classList.add('hidden')});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')mobileMenu.classList.add('hidden')});
+const secs=[...document.querySelectorAll('main section')],navs=[...document.querySelectorAll('#links a.navlink')];
+window.addEventListener('scroll',()=>{
+  $('hdr').classList.toggle('shadow-xl',scrollY>10);
+  let cur=secs[0].id;secs.forEach(s=>{if(scrollY+120>=s.offsetTop)cur=s.id});
+  navs.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+cur));
+},{passive:true});
+
+/* Category chips (click) */
+Object.entries(CATS).forEach(([k,c])=>{
+  const b=document.createElement('button');b.type='button';b.textContent=c.label;b.dataset.key=k;
+  b.className='chip border border-ink/25 rounded-full px-4 py-2 text-sm font-semibold hover:bg-sun hover:border-sun transition';
+  b.setAttribute('aria-pressed',k===selected);$('chips').appendChild(b);
+});
+$('chips').addEventListener('click',e=>{
+  const b=e.target.closest('.chip');if(!b)return;selected=b.dataset.key;
+  $('chips').querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  if(center)runSearch();
+});
+
+/* Radius (change) */
+$('radius').addEventListener('change',()=>{
+  $('radiusMsg').textContent=+$('radius').value>=10000?'Large radius: results may take longer to load.':'';
+  if(center)runSearch();
+});
+
+/* Live validation (input) */
+const place=$('place');
+function validate(){
+  const v=place.value.trim(),m=$('placeMsg');
+  if(!v){m.textContent='Enter an address or area to search.';m.className='text-sm mt-1 text-red-700';return false}
+  if(v.length<3){m.textContent='Type at least 3 characters.';m.className='text-sm mt-1 text-red-700';return false}
+  m.textContent='Looks good.';m.className='text-sm mt-1 text-teal';return true;
+}
+place.addEventListener('input',validate);
+
+/* Submit: address -> coordinates (Nominatim, backup Photon) */
+async function timeoutFetch(url,opt,ms){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{return await fetch(url,{...opt,signal:c.signal})}finally{clearTimeout(t)}}
+async function geocode(q){
+  try{
+    const r=await timeoutFetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q),{},10000);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();return d.length?{lat:+d[0].lat,lon:+d[0].lon,name:d[0].display_name}:null;
+  }catch(e){
+    const r=await timeoutFetch('https://photon.komoot.io/api/?limit=1&q='+encodeURIComponent(q),{},10000);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const f=(await r.json()).features[0];
+    return f?{lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0],name:f.properties.name||q}:null;
+  }
+}
+$('searchForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(!validate()){place.focus();return}
+  setStatus('loading','Finding that address…');
+  try{
+    const c=await geocode(place.value.trim());
+    if(!c){setStatus('empty','No address found for "'+place.value.trim()+'". Check the spelling or add the city name.');return}
+    center=c;runSearch();
+  }catch(err){setStatus('error','Could not reach the address service ('+err.message+'). Check your internet, and open the site from the https link or localhost, not as a file.')}
+});
+
+/* Use my location (click) */
+$('locBtn').addEventListener('click',()=>{
+  if(!navigator.geolocation){setStatus('error','This browser does not support location. Type an address instead.');return}
+  if(location.protocol==='file:'){setStatus('error','Location is blocked when the page is opened as a file. Open the deployed https link instead.');return}
+  setStatus('loading','Getting your location…');
+  navigator.geolocation.getCurrentPosition(async p=>{
+    center={lat:p.coords.latitude,lon:p.coords.longitude,name:'Your location'};
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${center.lat}&lon=${center.lon}`);
+      const d=await r.json();if(d.display_name){center.name=d.display_name;place.value=d.display_name.split(',').slice(0,3).join(',')}
+    }catch(e){place.value='Your location'}
+    validate();runSearch();
+  },err=>{
+    const msg={1:'Location permission is blocked. Click the lock icon in the address bar, allow Location, then retry.',2:'Your device could not find your position. Turn on device location services or type an address.',3:'Finding your location timed out. Try again or type an address.'}[err.code]||'Location failed. Type an address instead.';
+    setStatus('error',msg);
+  },{timeout:12000,maximumAge:60000});
+});
+
+/* Places: all Overpass servers race in parallel; Nominatim is the backup */
+async function overpass(ql){
+  return Promise.any(OVERPASS.map(async u=>{
+    const r=await timeoutFetch(u,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(ql)},14000);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    if(!j.elements||/timed out|runtime error/i.test(j.remark||''))throw new Error('server overloaded');
+    return j.elements.map(el=>({id:el.type+el.id,name:el.tags?.name,lat:el.lat??el.center?.lat,lon:el.lon??el.center?.lon,hours:el.tags?.opening_hours||''}));
+  }));
+}
+async function nominatimPlaces(c,radius){
+  const dLat=radius/111320,dLon=radius/(111320*Math.cos(center.lat*Math.PI/180));
+  const vb=[center.lon-dLon,center.lat+dLat,center.lon+dLon,center.lat-dLat].join(',');
+  const all=await Promise.all(c.terms.map(async t=>{
+    const r=await timeoutFetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=40&bounded=1&viewbox=${vb}&q=${encodeURIComponent(t)}`,{},12000);
+    if(!r.ok)throw new Error('HTTP '+r.status);return r.json();
+  }));
+  return all.flat().map(x=>({id:'n'+x.place_id,name:x.name||x.display_name.split(',')[0],lat:+x.lat,lon:+x.lon,hours:''}));
+}
+async function runSearch(){
+  const radius=+$('radius').value,c=CATS[selected];
+  setStatus('loading','Searching for '+c.label.toLowerCase()+' within '+fmtDist(radius)+'. This can take up to 15 seconds…');
+  $('results').innerHTML='';$('dirPanel').classList.add('hidden');
+  const ql='[out:json][timeout:15];('+c.q.map(f=>`nwr${f}(around:${radius},${center.lat},${center.lon});`).join('')+');out center 150;';
+  let places;
+  try{places=await overpass(ql)}catch(e1){
+    setStatus('loading','Main places server is slow. Trying the backup source…');
+    try{places=await nominatimPlaces(c,radius)}catch(e2){
+      const why=(e1.errors||[e1]).map(x=>x.name==='AbortError'?'timeout':x.message).join(', ');
+      setStatus('error','Could not load places ('+why+'; backup: '+(e2.name==='AbortError'?'timeout':e2.message)+'). Press Search nearby again. If you opened this as a file, use the https link or localhost.');return;
+    }
+  }
+  const seen=new Set();
+  results=places.filter(p=>p.lat&&p.lon&&!seen.has(p.id)&&seen.add(p.id)).map(p=>({...p,name:p.name||('Unnamed '+c.label.toLowerCase()),d:Math.round(dist(center.lat,center.lon,p.lat,p.lon))})).filter(p=>p.d<=radius).sort((a,b)=>a.d-b.d).slice(0,15);
+  render();
+}
+
+function render(){
+  layer.clearLayers();markers={};routeLayer=null;
+  const ul=$('results');ul.innerHTML='';
+  L.circleMarker([center.lat,center.lon],{radius:9,color:'#0F2A33',fillColor:'#F4B63F',fillOpacity:1}).addTo(layer).bindPopup('Your starting point');
+  if(!results.length){setStatus('empty','No '+CATS[selected].label.toLowerCase()+' found in this radius. Try a larger radius or another category.');map.setView([center.lat,center.lon],14);return}
+  setStatus('ok','Showing the '+results.length+' closest results.');
+  const pts=[[center.lat,center.lon]];
+  results.forEach(p=>{
+    const m=L.marker([p.lat,p.lon]).addTo(layer).bindPopup(esc(p.name)+' · '+fmtDist(p.d));markers[p.id]=m;pts.push([p.lat,p.lon]);
+    const li=document.createElement('li');
+    li.className='row bg-white rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3';
+    li.innerHTML=`<div><p class="font-semibold">${esc(p.name)}</p><p class="text-sm text-ink/65">${fmtDist(p.d)} away${p.hours?' · '+esc(p.hours):''}</p></div>
+    <div class="flex gap-2"><button data-a="dir" class="text-sm bg-teal text-white rounded-full px-3 py-1.5 hover:bg-ink transition">Directions</button><button data-a="show" class="text-sm border border-ink/25 rounded-full px-3 py-1.5 hover:bg-sun transition">Show</button><button data-a="save" class="text-sm bg-ink text-white rounded-full px-3 py-1.5 hover:bg-teal transition">Save</button></div>`;
+    li.addEventListener('mouseenter',()=>m.openPopup());   /* hover highlights marker */
+    li.addEventListener('mouseleave',()=>m.closePopup());
+    li.querySelector('[data-a=show]').onclick=()=>map.setView([p.lat,p.lon],18);
+    li.querySelector('[data-a=save]').onclick=()=>savePlace(p);
+    li.querySelector('[data-a=dir]').onclick=()=>{$('map').scrollIntoView({behavior:'smooth',block:'center'});getRoute(p,mode)};
+    ul.appendChild(li);
+  });
+  map.fitBounds(pts,{padding:[30,30]});
+}
+
+/* Directions: OSM routing (car / bike / foot) */
+$('modeTabs').addEventListener('click',e=>{const b=e.target.closest('.mode');if(b&&dest)getRoute(dest,b.dataset.mode)});
+async function getRoute(p,m){
+  dest=p;mode=m;
+  $('dirPanel').classList.remove('hidden');
+  $('dirTitle').textContent='Route to '+p.name;
+  document.querySelectorAll('.mode').forEach(b=>{const on=b.dataset.mode===m;b.classList.toggle('bg-ink',on);b.classList.toggle('text-white',on)});
+  $('dirInfo').textContent='Calculating route…';
+  try{
+    const url=`https://routing.openstreetmap.de/${PROFILES[m]}/route/v1/driving/${center.lon},${center.lat};${p.lon},${p.lat}?overview=full&geometries=geojson`;
+    const r=await fetch(url);if(!r.ok)throw new Error(r.status);
+    const j=await r.json();if(!j.routes||!j.routes.length)throw new Error('no route');
+    const rt=j.routes[0];
+    if(routeLayer)map.removeLayer(routeLayer);
+    routeLayer=L.geoJSON(rt.geometry,{style:{color:'#1F7A6D',weight:6}}).addTo(map);
+    map.fitBounds(routeLayer.getBounds(),{padding:[30,30]});
+    $('dirInfo').textContent=fmtTime(rt.duration)+' · '+fmtDist(rt.distance);
+  }catch(e){$('dirInfo').textContent='No route found for this mode. Try another mode or place.'}
+}
+
+function setStatus(type,msg){
+  const cls={loading:'bg-white text-ink pulse',error:'bg-red-50 text-red-800',empty:'bg-sun/30 text-ink',ok:'text-ink/70'}[type];
+  $('status').innerHTML=`<p class="rounded-2xl px-4 py-3 ${cls}">${esc(msg)}</p>`;
+}
+function dist(a,b,c,d){const R=6371000,t=x=>x*Math.PI/180,dl=t(c-a),dn=t(d-b);const h=Math.sin(dl/2)**2+Math.cos(t(a))*Math.cos(t(c))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+function fmtDist(m){return m<1000?Math.round(m)+' m':(m/1000).toFixed(1)+' km'}
+function fmtTime(s){const m=Math.round(s/60);return m<60?m+' min':Math.floor(m/60)+' h '+(m%60)+' min'}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+/* Saved places (localStorage) */
+function getSaved(){try{return JSON.parse(localStorage.getItem('ne_saved')||'[]')}catch(e){return[]}}
+function setSaved(a){try{localStorage.setItem('ne_saved',JSON.stringify(a))}catch(e){}}
+function savePlace(p){const s=getSaved();if(!s.some(x=>x.id===p.id)){s.push({id:p.id,name:p.name,lat:p.lat,lon:p.lon});setSaved(s)}showSaved()}
+function showSaved(){
+  const ul=$('saved'),s=getSaved();
+  ul.innerHTML=s.length?'':'<li class="text-ink/60">Nothing saved yet. Press Save on any result.</li>';
+  s.forEach(p=>{
+    const li=document.createElement('li');li.className='flex justify-between gap-2 hover:bg-mist rounded-lg px-2 py-1 transition';
+    li.innerHTML=`<span>${esc(p.name)}</span><button class="underline text-ink/70 hover:text-ink">Remove</button>`;
+    li.querySelector('button').onclick=()=>{setSaved(getSaved().filter(x=>x.id!==p.id));showSaved()};
+    ul.appendChild(li);
+  });
+}
+document.addEventListener('DOMContentLoaded',showSaved);
+</script>
+</body>
+</html>
